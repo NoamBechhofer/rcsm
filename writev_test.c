@@ -11,7 +11,7 @@
 extern int getopt(int argc, char *const argv[], const char *opstring);
 extern char *optarg;
 
-#define WRITEV_TEST_DEBUG
+// #define WRITEV_TEST_DEBUG
 
 #ifdef WRITEV_TEST_DEBUG
 #define writev_test_debug(dbg) \
