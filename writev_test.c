@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/*
+ * These two are declared in `unistd.h`, but my vim is being weird about finding
+ * them so I'm just putting them here to make vim happy
+ */
+extern int getopt(int argc, char *const argv[], const char *opstring);
+extern char *optarg;
+
 #define WRITEV_TEST_DEBUG
 
 #ifdef WRITEV_TEST_DEBUG
@@ -49,6 +56,12 @@ int writev_basic_test()
 	return 0;
 }
 
+/**
+ * regular writev test, where the number of buffers and length of them is
+ * specified. Buffers are written to `/dev/null`.
+ *
+ * @return 0 if successful, non-zero otherwise
+ */
 int writev_parameterized_test(size_t num_bufs, size_t buf_len)
 {
 	struct iovec iovecs[num_bufs];
@@ -59,6 +72,7 @@ int writev_parameterized_test(size_t num_bufs, size_t buf_len)
 				"You are trying to write 0x%zX bytes. "
 				"Expect a partial write.\n", total_write);
 	}
+
 	printf("writing 0x%zX buffers, each of size 0x%zX (total 0x%zX bytes),"
 			" to `/dev/null`\n", num_bufs, buf_len, total_write);
 
@@ -66,12 +80,15 @@ int writev_parameterized_test(size_t num_bufs, size_t buf_len)
 		iovecs[i].iov_base = malloc(buf_len);
 		iovecs[i].iov_len = buf_len;
 
-		if (iovecs[i].iov_base != NULL || buf_len == 0)
-			continue;
-		/* otherwise, oopsie */
-		perror("writev_parameterized_test: could not allocate enough "
-				"memory to fill iovec buffers");
-		return 1;
+		/* 
+		 * Per the man page, malloc might return NULL for requests for
+		 * 0 bytes.
+		 */
+		if (iovecs[i].iov_base == NULL && buf_len != 0) {
+			perror("writev_parameterized_test: could not allocate "
+					"enough memory to fill iovec buffers");
+			return 1;
+		}
 	}
 
 	int fd = open("/dev/null", O_WRONLY);
@@ -82,7 +99,7 @@ int writev_parameterized_test(size_t num_bufs, size_t buf_len)
 
 	ssize_t nwritten = writev(fd, iovecs, num_bufs);
 
-	printf("wrote %zd bytes successfully\n", nwritten);
+	printf("wrote 0x%zX bytes successfully\n", nwritten);
 
 	for (int i = 0; i < num_bufs; i++) {
 		free(iovecs[i].iov_base);
@@ -94,7 +111,10 @@ int main(int argc, char **argv)
 {
 	size_t num_bufs = DEFAULT_NUM_BUFS, buf_len = DEFAULT_BUF_LEN;
 
-	
+	/*
+	 * Use getopt to parse command line arguments. This allows us to
+	 * override the default values for `num_bufs` and/or `buf_len`
+	 */
 	int opt;
 	while ((opt = getopt(argc, argv, "c:l:")) != -1) {
 		switch (opt) {
@@ -114,8 +134,9 @@ int main(int argc, char **argv)
 
 		}
 	}
+	/* finished parsing */
 
-
+	/* run the test(s) */
 	int ret = writev_parameterized_test(num_bufs, buf_len);
 #ifdef WRITEV_TEST_DEBUG
 	ret |= writev_basic_test();
