@@ -72,8 +72,7 @@ int writev_basic_test()
 
 /**
  * regular writev test, where the number of buffers and length of them is
- * specified. Buffers are written to `/dev/null`.
- *
+ * specified.
  * @return 0 if successful, non-zero otherwise
  */
 int writev_parameterized_test(size_t num_bufs, size_t buf_len, char *write_file)
